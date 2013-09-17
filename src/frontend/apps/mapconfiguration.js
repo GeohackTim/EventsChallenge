@@ -64,7 +64,7 @@ function loadmap(){
 		zoom: 10
 	});
 	
-	var searchContent = 'Search Area:  <input id="buffersize" type="input" size="5" value="5" />m<br />';
+	var searchContent = 'Search Area:  <input id="buffersize" type="input" size="5" value="5" />miles<br />';
 	searchContent += '<input type="button" value="Select Location on Map" onclick="skiddlesearchon()" />'; 
 	
 	searchPanel = new Ext.Panel({
