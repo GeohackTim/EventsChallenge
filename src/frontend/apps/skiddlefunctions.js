@@ -1,4 +1,5 @@
 function skiddlesearchon(){
+	pointLayer.removeAllFeatures();
 	skiddlePoint.activate();
 }
 

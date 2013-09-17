@@ -22,8 +22,8 @@ if (window.innerWidth && window.innerHeight) {
 
 function loadmap(){
 	bounds = new OpenLayers.Bounds(
-			461952, 167208, 480155, 179442
-	).transform(new OpenLayers.Projection("EPSG:27700"),new OpenLayers.Projection("EPSG:900913"));
+			-6.2400, 49.9400, 1.7800, 58.6700
+	).transform(new OpenLayers.Projection("EPSG:4326"),new OpenLayers.Projection("EPSG:900913"));
 	
 	var mapProj = new OpenLayers.Projection("EPSG:900913");
 	
@@ -38,8 +38,7 @@ function loadmap(){
                 transitionEffect: 'resize'
             })
         ],
-        center: new OpenLayers.LonLat(405000,285000).transform(new OpenLayers.Projection("EPSG:27700"),new OpenLayers.Projection("EPSG:900913")),
-        zoom: 1
+        center: new OpenLayers.LonLat(405000,285000).transform(new OpenLayers.Projection("EPSG:27700"),new OpenLayers.Projection("EPSG:900913"))
     });
 	
 	//Define the mapPanel
@@ -90,119 +89,24 @@ function loadmap(){
 		items:[accordion, mapPanel]
 	});
 	
-	poiSaveStrategy = new OpenLayers.Strategy.Save({auto: true});
-	
-	var selStyle = {
-		strokeColor: "#006400",
-		fillColor: "#32CD32",				
-		strokeOpacity: 0.85,
-		fillOpacity: 0.85,
-		pointRadius: 5,
-		strokeWidth: 2
-	};
-	var selSty = OpenLayers.Util.applyDefaults(selStyle, OpenLayers.Feature.Vector.style["default"]);
-	
-	// //////////////////////////////////////////////////////////
-	// Vertex style, to allow custom theme for the 
-	// editing controls. It is necessary in order to visualize 
-	// correctly the edit controls symbols (RESHAPE, DRAG, ROTATE) 
-	// in the map when a feature is selected.
-	// //////////////////////////////////////////////////////////
-	var vertexStyle = {
-		strokeColor: "#ff0000",
-		fillColor: "#ff0000",
-		strokeOpacity: 1,
-		strokeWidth: 2,
-		pointRadius: 3,
-		graphicName: "cross"
-	};
-
-	// ////////////////////////////////////////
-	// Select style, the style used when a 
-	// feature is selected.
-	// ////////////////////////////////////////
-	var select = {
-		strokeColor: "blue", 
-		strokeOpacity: 0.5,
-		fillOpacity: 0.5,
-		fillColor: "blue"
-	};
-			
-	var selsm = new OpenLayers.StyleMap({
-		'default': selSty,
-		'vertex': vertexStyle,
-		'select': select
-	});
-			
-	pointLayer = new OpenLayers.Layer.Vector("Selection", {
-		displayInLayerSwitcher: false,
-		projection: mapProj,
-		styleMap: selsm
-	});
-	map.addLayer(pointLayer);
+	//Skiddle point layer
+	pointLayer = new OpenLayers.Layer.Vector("Point Layer", {renderers: renderer});
+	var renderer = OpenLayers.Util.getParameters(window.location.href).renderer;
+    renderer = (renderer) ? [renderer] : OpenLayers.Layer.Vector.prototype.renderers;   
+	map.addLayers([pointLayer]);
 	
 	//Skiddle Search Tool
-	OpenLayers.Control.Click = OpenLayers.Class(OpenLayers.Control, {                
-		defaultHandlerOptions: {
-			'single': true,
-			'double': false,
-			'pixelTolerance': 0,
-			'stopSingle': false,
-			'stopDouble': false
-		},
-
-		initialize: function(options) {
-			this.handlerOptions = OpenLayers.Util.extend(
-				{}, this.defaultHandlerOptions
-			);
-			OpenLayers.Control.prototype.initialize.apply(
-				this, arguments
-			); 
-			this.handler = new OpenLayers.Handler.Click(
-				this, {
-					'click': this.trigger
-				}, this.handlerOptions
-			);
-		},
-
-		trigger: function(e) {
-			//Pickup the location
-			var lonlat = map.getLonLatFromPixel(e.xy);
-			var newGeom = lonlat;
-			var attributes = {
-				x: lonlat.lat,
-				y: lonlat.lon,			
-				buffer: document.getElementById('buffersize').value //This value is in metres
-			};
-			var newFeature = new OpenLayers.Feature.Vector(newGeom, attributes); 
-			newFeature.state = OpenLayers.State.INSERT;
-			
-			//Delete any previous points
-			pointLayer.removeAllFeatures();
-			
-			//Add the point graphic
-			/*pointLayer.addFeatures([newFeature]);
-			poiSaveStrategy.save(newFeature);
-			pointLayer.refresh({force:true});
-			BOUNDS ISSUE
-			*/
-			
-			//Convert latlon to WGS84 latlon
-			lonlat = lonlat.transform(new OpenLayers.Projection("EPSG:900913"),new OpenLayers.Projection("EPSG:4326"));
-			
-			//Call the search
-			skiddlesearch(lonlat.lat,lonlat.lon,document.getElementById('buffersize').value);
-							
-			//Deactivate the tool
-			skiddlePoint.deactivate();
-		}
-
+	skiddlePoint = new OpenLayers.Control.DrawFeature(pointLayer, OpenLayers.Handler.Point);
+	skiddlePoint.events.register('featureadded', skiddlePoint, function(f) {
+		eventHandle(f.feature.geometry);
 	});
-	skiddlePoint = new OpenLayers.Control.Click();
 	map.addControl(skiddlePoint);
-	skiddlePoint.activate();
-	skiddlePoint.deactivate();
 	
+	geoLocation();
+
+}
+
+function geoLocation(){
 	//Geolocation tools
 	var geolocate = new OpenLayers.Control.Geolocate({
 		bind: false,
@@ -216,24 +120,9 @@ function loadmap(){
 	//Register an event to add location if available
 	firsttime = 0;
 	var geolocationlayer = new OpenLayers.Layer.Vector('Current Location');
+	map.addLayer(geolocationlayer);
 	geolocate.events.register("locationupdated",geolocate,function(e) {
-		geolocationlayer.removeAllFeatures();
-		
-		//point:{id:"OpenLayers.Geometry.Point_156", x:-134079.62897798652, y:6971611.355122281}
 		var userLocation = new OpenLayers.LonLat(e.point.x, e.point.y);
-		geolocationlayer.addFeatures([
-			new OpenLayers.Feature.Vector(
-				userLocation,
-				{},
-				{
-					graphicName: 'cross',
-					strokeColor: '#f00',
-					strokeWidth: 2,
-					fillOpacity: 0,
-					pointRadius: 10
-				}
-			)
-		]);
 		if (firsttime == 0){
 			map.setCenter(userLocation);
 			firsttime = 1;
@@ -241,7 +130,19 @@ function loadmap(){
 	});
 	geolocate.watch = true;
 	map.addControl(geolocate);
-	geolocate.activate();
-	map.addLayer(geolocationlayer);	
+	geolocate.activate();	
+}
 
+function eventHandle(e){
+	//Pickup the location
+	var lonlat = e;
+	
+	//Convert latlon to WGS84 latlon
+	lonlat = lonlat.transform(new OpenLayers.Projection("EPSG:900913"),new OpenLayers.Projection("EPSG:4326"));
+	
+	//Call the search
+	skiddlesearch(e.x,e.y,document.getElementById('buffersize').value);
+	
+	//Deactivate the tool
+	skiddlePoint.deactivate();
 }
